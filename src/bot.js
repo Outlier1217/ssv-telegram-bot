@@ -19,14 +19,6 @@ export function registerCommands(bot) {
   connect(bot);
 
   // button handlers 👇
-  bot.callbackQuery("dashboard", (ctx) => {
-    ctx.answerCallbackQuery();
-    ctx.reply(`🎮 Your Stats
-
-XP: 120
-Level: 3
-Bonus: +15%`);
-  });
 
   bot.callbackQuery("portfolio", (ctx) => {
     ctx.answerCallbackQuery();
@@ -37,13 +29,6 @@ Bonus: +15%`);
 15% Risk`);
   });
 
-  bot.callbackQuery("verify", (ctx) => {
-    ctx.answerCallbackQuery();
-    ctx.reply(`🔐 NexaID Verified
-
-Score: 650
-Bonus: +10%`);
-  });
 
   bot.callbackQuery("deposit", (ctx) => {
     ctx.answerCallbackQuery();

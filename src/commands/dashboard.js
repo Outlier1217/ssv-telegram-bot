@@ -2,7 +2,9 @@ import { getUser } from "../utils/storage.js";
 import { getUserData } from "../utils/blockchain.js";
 
 export default function (bot) {
-  bot.command("dashboard", async (ctx) => {
+
+  // 🔹 Common function (reuse for command + button)
+  async function showDashboard(ctx) {
     const userId = ctx.from.id;
     const wallet = getUser(userId);
 
@@ -12,7 +14,7 @@ export default function (bot) {
 
     const data = await getUserData(wallet);
 
-    ctx.reply(
+    return ctx.reply(
 `📊 Your Vault
 
 🔐 Verified: ${data.verified ? "✅ Yes" : "❌ No"}
@@ -24,6 +26,15 @@ export default function (bot) {
 🎮 XP: ${data.xp}
 Level: ${data.level}
 Bonus: +${data.level * 5}%`
-);
+    );
+  }
+
+  // ✅ Command
+  bot.command("dashboard", showDashboard);
+
+  // ✅ Button click
+  bot.callbackQuery("dashboard", async (ctx) => {
+    ctx.answerCallbackQuery();
+    await showDashboard(ctx);
   });
 }
