@@ -2,7 +2,9 @@ import { getUser } from "../utils/storage.js";
 import { getUserData } from "../utils/blockchain.js";
 
 export default function (bot) {
-  bot.command("verify", async (ctx) => {
+
+  // 🔹 Common function (reuse)
+  async function showVerify(ctx) {
     const userId = ctx.from.id;
     const wallet = getUser(userId);
 
@@ -12,7 +14,7 @@ export default function (bot) {
 
     const data = await getUserData(wallet);
 
-    ctx.reply(
+    return ctx.reply(
 `🔐 NexaID Status
 
 ${data.verified ? "✅ Verified" : "❌ Not Verified"}
@@ -23,5 +25,14 @@ Bonus: ${
   data.score > 500 ? "+10%" : "0%"
 }`
     );
+  }
+
+  // ✅ command
+  bot.command("verify", showVerify);
+
+  // ✅ button click
+  bot.callbackQuery("verify", async (ctx) => {
+    ctx.answerCallbackQuery();
+    await showVerify(ctx);
   });
 }
