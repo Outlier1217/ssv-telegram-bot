@@ -20,8 +20,8 @@ export default function (bot) {
 🔐 Verified: ${data.verified ? "✅ Yes" : "❌ No"}
 ⭐ Score: ${data.score}
 
-💰 Deposit: ${data.deposit} USDC
-🎁 Rewards: ${data.reward} USDC
+💰 Deposit: ${data.deposit === "—" ? "Not available" : data.deposit + " USDC"}
+🎁 Rewards: ${data.reward === "—" ? "Not available" : data.reward + " USDC"}
 
 🎮 XP: ${data.xp}
 Level: ${data.level}
