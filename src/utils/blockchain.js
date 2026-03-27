@@ -4,7 +4,7 @@ const RPC_URL = "https://testnet.hsk.xyz";
 const provider = new ethers.JsonRpcProvider(RPC_URL);
 
 const VAULT_ADDRESS = "0x78c37Dcb5C3C072DAfb9D4e28638BBcdf297FeeB";
-const NEXAID_ADDRESS = "0x3a21b6C601B599AB9460e689f4cBb051e5737d0e";
+const NEXAID_ADDRESS = "0xe5A9A3B722567d8B7Ef728C1A5322Bf1Aa71553c";
 
 const ABI = [
   "function balances(address) view returns (uint256)",
