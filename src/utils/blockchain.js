@@ -15,7 +15,8 @@ const ABI = [
 ];
 
 const NEXA_ABI = [
-  "function getScore(address) view returns (uint256)"
+  "function getScore(address) view returns (uint256)",
+  "function verify(address) view returns (bool)"
 ];
 
 const contract = new ethers.Contract(VAULT_ADDRESS, ABI, provider);
@@ -23,61 +24,59 @@ const nexaContract = new ethers.Contract(NEXAID_ADDRESS, NEXA_ABI, provider);
 
 export async function getUserData(wallet) {
   try {
+    console.log(`🔍 Fetching data for wallet: ${wallet}`);
+    
+    // 🔹 Get NexaID score
+    let score = "0";
+    let verified = false;
+    try {
+      score = await nexaContract.getScore(wallet);
+      verified = await nexaContract.verify(wallet);
+      console.log(`✅ NexaID: Score=${score.toString()}, Verified=${verified}`);
+    } catch (e) {
+      console.log("⚠️ NexaID fetch failed:", e.message);
+    }
 
-    // 🔹 Always fetch from NexaID (new)
-    const score = await nexaContract.getScore(wallet);
-
-    // 🔹 Try Vault data (may fail logically)
+    // 🔹 Try Vault data
     let deposit = "0";
     let reward = "0";
     let userXP = "0";
     let userLevel = "1";
-    let verified = false;
-
+    
     try {
-      const vaultData = await Promise.all([
+      const [balance, xp, level, rewardsData] = await Promise.all([
         contract.balances(wallet),
         contract.xp(wallet),
         contract.level(wallet),
-        contract.rewards(wallet),
-        contract.isVerified(wallet)
+        contract.rewards(wallet)
       ]);
-
-      const rawDeposit = vaultData[0];
-      const rawReward = vaultData[3];
-
-      // ✅ Only use Vault if it actually has data
-      if (rawDeposit > 0 || rawReward > 0) {
-        deposit = ethers.formatUnits(rawDeposit, 6);
-        reward = ethers.formatUnits(rawReward, 6);
-        userXP = vaultData[1].toString();
-        userLevel = vaultData[2].toString();
-        verified = vaultData[4];
-      }
-
+      
+      deposit = ethers.formatUnits(balance, 6);
+      reward = ethers.formatUnits(rewardsData, 6);
+      userXP = xp.toString();
+      userLevel = level.toString();
+      
+      console.log(`✅ Vault: Deposit=${deposit}, Reward=${reward}, XP=${userXP}, Level=${userLevel}`);
+      
     } catch (e) {
-      console.log("Vault fallback triggered");
+      console.log("⚠️ Vault fetch failed:", e.message);
     }
 
-    // 🔹 Fallback logic (important)
-    if (deposit === "0") {
-      // 👉 simulate UX instead of showing broken system
-      deposit = "—";
-      reward = "—";
-    }
+    // 🔹 Agar deposit 0 hai toh "—" show karo, warna actual value
+    const displayDeposit = (deposit === "0") ? "—" : deposit;
+    const displayReward = (reward === "0") ? "—" : reward;
 
     return {
-      deposit,
+      deposit: displayDeposit,
       xp: userXP,
       level: userLevel,
-      reward,
-      verified,
+      reward: displayReward,
+      verified: verified,
       score: score.toString()
     };
 
   } catch (err) {
-    console.log("ERROR:", err.shortMessage || err.message);
-
+    console.log("❌ ERROR:", err.message);
     return {
       deposit: "—",
       xp: "0",
