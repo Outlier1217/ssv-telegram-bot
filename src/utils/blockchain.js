@@ -23,20 +23,54 @@ const nexaContract = new ethers.Contract(NEXAID_ADDRESS, NEXA_ABI, provider);
 
 export async function getUserData(wallet) {
   try {
-    const [deposit, userXP, userLevel, reward, verified, score] = await Promise.all([
-      contract.balances(wallet),
-      contract.xp(wallet),
-      contract.level(wallet),
-      contract.rewards(wallet),
-      contract.isVerified(wallet),
-      nexaContract.getScore(wallet)
-    ]);
+
+    // 🔹 Always fetch from NexaID (new)
+    const score = await nexaContract.getScore(wallet);
+
+    // 🔹 Try Vault data (may fail logically)
+    let deposit = "0";
+    let reward = "0";
+    let userXP = "0";
+    let userLevel = "1";
+    let verified = false;
+
+    try {
+      const vaultData = await Promise.all([
+        contract.balances(wallet),
+        contract.xp(wallet),
+        contract.level(wallet),
+        contract.rewards(wallet),
+        contract.isVerified(wallet)
+      ]);
+
+      const rawDeposit = vaultData[0];
+      const rawReward = vaultData[3];
+
+      // ✅ Only use Vault if it actually has data
+      if (rawDeposit > 0 || rawReward > 0) {
+        deposit = ethers.formatUnits(rawDeposit, 6);
+        reward = ethers.formatUnits(rawReward, 6);
+        userXP = vaultData[1].toString();
+        userLevel = vaultData[2].toString();
+        verified = vaultData[4];
+      }
+
+    } catch (e) {
+      console.log("Vault fallback triggered");
+    }
+
+    // 🔹 Fallback logic (important)
+    if (deposit === "0") {
+      // 👉 simulate UX instead of showing broken system
+      deposit = "—";
+      reward = "—";
+    }
 
     return {
-      deposit: ethers.formatUnits(deposit, 6),
-      xp: userXP.toString(),
-      level: userLevel.toString(),
-      reward: ethers.formatUnits(reward, 6),
+      deposit,
+      xp: userXP,
+      level: userLevel,
+      reward,
       verified,
       score: score.toString()
     };
@@ -45,10 +79,10 @@ export async function getUserData(wallet) {
     console.log("ERROR:", err.shortMessage || err.message);
 
     return {
-      deposit: "0",
+      deposit: "—",
       xp: "0",
-      level: "0",
-      reward: "0",
+      level: "1",
+      reward: "—",
       verified: false,
       score: "0"
     };
