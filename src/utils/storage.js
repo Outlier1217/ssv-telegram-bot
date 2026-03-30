@@ -9,14 +9,17 @@ export function saveUser(userId, wallet) {
     data = JSON.parse(fs.readFileSync(file));
   }
 
-  data[userId] = wallet;
+  if (wallet === null) {
+    delete data[userId];
+  } else {
+    data[userId] = wallet;
+  }
 
   fs.writeFileSync(file, JSON.stringify(data, null, 2));
 }
 
 export function getUser(userId) {
   if (!fs.existsSync(file)) return null;
-
   const data = JSON.parse(fs.readFileSync(file));
-  return data[userId];
+  return data[userId] || null;
 }

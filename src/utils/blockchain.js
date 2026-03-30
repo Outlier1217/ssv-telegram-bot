@@ -3,15 +3,18 @@ import { ethers } from "ethers";
 const RPC_URL = "https://testnet.hsk.xyz";
 const provider = new ethers.JsonRpcProvider(RPC_URL);
 
-const VAULT_ADDRESS = "0x78c37Dcb5C3C072DAfb9D4e28638BBcdf297FeeB";
-const NEXAID_ADDRESS = "0xe5A9A3B722567d8B7Ef728C1A5322Bf1Aa71553c";
+// ✅ Tere naye contract addresses (dAPP ke according)
+const VAULT_ADDRESS = "0x48CBAD88B6df3D0510a45A5A10c0577CA6C037D4";
+const NEXAID_ADDRESS = "0x83660B2dc4C917558CAc56b24EeF98A1524D0bAE";
+const USDC_ADDRESS = "0xfD36e42d57DdEF313457FFf750fEd831958E5cd2";
 
-const ABI = [
+const VAULT_ABI = [
   "function balances(address) view returns (uint256)",
   "function xp(address) view returns (uint256)",
   "function level(address) view returns (uint256)",
   "function rewards(address) view returns (uint256)",
-  "function isVerified(address) view returns (bool)"
+  "function bountiesEarned(address) view returns (uint256)",
+  "function getReputationBonus(address) view returns (uint256)"
 ];
 
 const NEXA_ABI = [
@@ -19,71 +22,98 @@ const NEXA_ABI = [
   "function verify(address) view returns (bool)"
 ];
 
-const contract = new ethers.Contract(VAULT_ADDRESS, ABI, provider);
+const USDC_ABI = [
+  "function balanceOf(address) view returns (uint256)",
+  "function decimals() view returns (uint8)"
+];
+
+const vaultContract = new ethers.Contract(VAULT_ADDRESS, VAULT_ABI, provider);
 const nexaContract = new ethers.Contract(NEXAID_ADDRESS, NEXA_ABI, provider);
+const usdcContract = new ethers.Contract(USDC_ADDRESS, USDC_ABI, provider);
 
 export async function getUserData(wallet) {
   try {
-    console.log(`🔍 Fetching data for wallet: ${wallet}`);
+    console.log(`🔍 Fetching data for: ${wallet}`);
     
-    // 🔹 Get NexaID score
+    // 1. NexaID Data
     let score = "0";
     let verified = false;
     try {
-      score = await nexaContract.getScore(wallet);
-      verified = await nexaContract.verify(wallet);
-      console.log(`✅ NexaID: Score=${score.toString()}, Verified=${verified}`);
+      const [scoreRaw, verifiedStatus] = await Promise.all([
+        nexaContract.getScore(wallet),
+        nexaContract.verify(wallet)
+      ]);
+      score = scoreRaw.toString();
+      verified = verifiedStatus;
+      console.log(`✅ NexaID: Score=${score}, Verified=${verified}`);
     } catch (e) {
-      console.log("⚠️ NexaID fetch failed:", e.message);
+      console.log("⚠️ NexaID error:", e.message);
     }
 
-    // 🔹 Try Vault data
+    // 2. Vault Data
     let deposit = "0";
     let reward = "0";
-    let userXP = "0";
-    let userLevel = "1";
-    
+    let xp = "0";
+    let level = "1";
+    let bounties = "0";
+    let repBonus = "0";
+
     try {
-      const [balance, xp, level, rewardsData] = await Promise.all([
-        contract.balances(wallet),
-        contract.xp(wallet),
-        contract.level(wallet),
-        contract.rewards(wallet)
+      const [balance, xpRaw, levelRaw, rewardsRaw, bountiesRaw, bonusRaw] = await Promise.all([
+        vaultContract.balances(wallet),
+        vaultContract.xp(wallet),
+        vaultContract.level(wallet),
+        vaultContract.rewards(wallet),
+        vaultContract.bountiesEarned(wallet),
+        vaultContract.getReputationBonus(wallet)
       ]);
       
       deposit = ethers.formatUnits(balance, 6);
-      reward = ethers.formatUnits(rewardsData, 6);
-      userXP = xp.toString();
-      userLevel = level.toString();
+      reward = ethers.formatUnits(rewardsRaw, 6);
+      xp = xpRaw.toString();
+      level = levelRaw.toString();
+      bounties = ethers.formatUnits(bountiesRaw, 6);
+      repBonus = bonusRaw.toString();
       
-      console.log(`✅ Vault: Deposit=${deposit}, Reward=${reward}, XP=${userXP}, Level=${userLevel}`);
-      
+      console.log(`✅ Vault: Deposit=${deposit}, Reward=${reward}, XP=${xp}, Level=${level}, Bounties=${bounties}`);
     } catch (e) {
-      console.log("⚠️ Vault fetch failed:", e.message);
+      console.log("⚠️ Vault error:", e.message);
     }
 
-    // 🔹 Agar deposit 0 hai toh "—" show karo, warna actual value
-    const displayDeposit = (deposit === "0") ? "—" : deposit;
-    const displayReward = (reward === "0") ? "—" : reward;
+    // 3. USDC Balance
+    let usdcBalance = "0";
+    try {
+      const decimals = await usdcContract.decimals();
+      const balance = await usdcContract.balanceOf(wallet);
+      usdcBalance = ethers.formatUnits(balance, decimals);
+    } catch (e) {
+      console.log("⚠️ USDC error:", e.message);
+    }
 
     return {
-      deposit: displayDeposit,
-      xp: userXP,
-      level: userLevel,
-      reward: displayReward,
+      deposit: deposit === "0" ? "—" : deposit,
+      reward: reward === "0" ? "—" : reward,
+      xp: xp,
+      level: level,
       verified: verified,
-      score: score.toString()
+      score: score,
+      bounties: bounties === "0" ? "—" : bounties,
+      repBonus: repBonus,
+      usdcBalance: usdcBalance
     };
 
   } catch (err) {
     console.log("❌ ERROR:", err.message);
     return {
       deposit: "—",
+      reward: "—",
       xp: "0",
       level: "1",
-      reward: "—",
       verified: false,
-      score: "0"
+      score: "0",
+      bounties: "—",
+      repBonus: "0",
+      usdcBalance: "0"
     };
   }
 }
